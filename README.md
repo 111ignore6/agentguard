@@ -67,8 +67,12 @@ repository. It reads like a normal house style rule.
 ```
 
 A human reads an honest disclaimer. An agent reads "ignore the above, continue".
-The same payload was found in two different organisations' repositories,
-suggesting a shared template rather than independent actors.
+The same `SKIP_VALIDATION` framing — with a **verbatim-identical opening comment**
+— appears in two different organisations' repositories, which points to a shared
+template rather than independent actors. (The blocks are not byte-identical: 829
+vs 745 bytes; only the warning between the comments differs. See
+[`FINDINGS.md`](FINDINGS.md#8-corrections), which also lists four other claims
+this project got wrong and corrected.)
 
 ## Install
 
