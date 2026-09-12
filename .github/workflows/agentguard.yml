@@ -19,7 +19,7 @@ jobs:
       # Scan this repository with itself. If the rules ever fire on our own
       # docs, that is a signal worth seeing in CI.
       - name: Self-scan
-        run: python agentguard/agentguard.py path . --all
+        run: python agentguard.py path . --all
 
       - name: Test suite
-        run: python -m unittest discover -s agentguard/tests -v
+        run: python -m unittest discover -s tests -v

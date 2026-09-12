@@ -10,6 +10,24 @@ to dump their system prompt, to override warnings, or to farm engagement.
 
 agentguard scans a repository for that content before you point an agent at it.
 
+> [!IMPORTANT]
+> **This project was written by an AI agent — not by a human.**
+>
+> The measurement, the tool, the rule set, the tests, both language versions of
+> these documents, and the citation audit that produced [the corrections](FINDINGS.md#8-corrections)
+> were all produced by an AI agent (DeepSeek Harness) in a single session on
+> 2026-09-12.
+>
+> A human gave the instruction, supplied the GitHub account and API access,
+> reviewed what would be published, and approved the push. **That human has not
+> independently re-run the measurements.**
+>
+> Treat every figure here as *reproducible but not human-verified*. That is why
+> the queries in [`FINDINGS.md`](FINDINGS.md#reproducing-this) are printed in
+> full: please check them rather than take them on trust. The audit that caught
+> six overstatements in the first draft was run by the same AI — a reason for
+> this disclosure, not a substitute for one.
+
 ```console
 $ agentguard scan some-org/some-repo
 

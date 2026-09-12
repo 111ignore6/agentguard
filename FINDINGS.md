@@ -2,6 +2,12 @@
 
 **English** · [中文](FINDINGS.zh-CN.md)
 
+> **Provenance.** Every figure in this document, and the tool itself, were
+> produced by an AI agent in one session on 2026-09-12; a human supplied the
+> account and approved publication but has not re-run the measurements. Treat the
+> numbers as *reproducible, not human-verified* — the queries below are printed in
+> full so you can check them. See the disclosure in [`README.md`](README.md).
+
 Measured 2026-09-12. Every number here is reproducible from the queries in
 [Reproducing this](#reproducing-this). Raw data was pulled with the `gh` CLI
 against the GitHub REST API.
