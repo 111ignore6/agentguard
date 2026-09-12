@@ -1,5 +1,7 @@
 # Findings: agent-targeted content in the open-source bounty surface
 
+**English** · [中文](FINDINGS.zh-CN.md)
+
 Measured 2026-09-12. Every number here is reproducible from the queries in
 [Reproducing this](#reproducing-this). Raw data was pulled with the `gh` CLI
 against the GitHub REST API.

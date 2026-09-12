@@ -1,5 +1,7 @@
 # agentguard
 
+**English** · [中文](README.zh-CN.md)
+
 **Your coding agent trusts what it reads. agentguard checks what it reads.**
 
 Coding agents ingest `CONTRIBUTING.md`, `AGENTS.md`, issue bodies and repo docs as
@@ -28,7 +30,7 @@ agentguard  v0.1.0
 
 This tool came out of a measurement, not a hunch. On 2026-09-12 we scanned the
 open-issue surface that an agent sees when it looks for open-source bounty work.
-Full method and reproducible queries: [`FINDINGS.md`](FINDINGS.md).
+Full method and reproducible queries: [`FINDINGS.md`](FINDINGS.md) ([中文](FINDINGS.zh-CN.md)).
 
 | Observation | Value |
 |---|---|

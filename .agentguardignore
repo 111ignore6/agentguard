@@ -18,6 +18,8 @@ tests/
 # Documents that quote payloads verbatim in order to explain the attack.
 FINDINGS.md
 README.md
+FINDINGS.zh-CN.md
+README.zh-CN.md
 
 # The rule set itself. Each rule's "regex" field contains the literal strings
 # the rule looks for, so rules.json trivially matches its own patterns.
