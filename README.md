@@ -2,6 +2,8 @@
 
 **English** · [中文](README.zh-CN.md)
 
+![agentguard CI](https://github.com/111ignore6/agentguard/actions/workflows/agentguard.yml/badge.svg)
+
 **Your coding agent trusts what it reads. agentguard checks what it reads.**
 
 Coding agents ingest `CONTRIBUTING.md`, `AGENTS.md`, issue bodies and repo docs as

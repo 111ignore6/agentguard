@@ -2,6 +2,8 @@
 
 [English](README.md) · **中文**
 
+![agentguard CI](https://github.com/111ignore6/agentguard/actions/workflows/agentguard.yml/badge.svg)
+
 **你的编码 agent 会信任它读到的东西。agentguard 检查它读到的东西。**
 
 编码 agent 会把 `CONTRIBUTING.md`、`AGENTS.md`、issue 正文和仓库文档当作**可信上下文**读进去。而其中一部分内容，是专门写来操纵它的——套取系统提示词、覆盖警告、或者刷指标。
