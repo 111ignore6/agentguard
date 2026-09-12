@@ -1,0 +1,24 @@
+# agentguard scanning itself.
+#
+# This repository ships attack samples on purpose. They are inert data — test
+# fixtures, rule patterns and documentation quotes — not instructions addressed
+# to a reader. Without these exclusions agentguard reports its own corpus as
+# hostile, which would make the self-scan in CI meaningless.
+#
+# This is a declared skip, not a hidden one: CI prints how many files were
+# skipped, and the reason is written down here.
+#
+# Note the shape of the problem. A tool that detects injection payloads has to
+# contain injection payloads: in its rules, in its tests, and in its docs. Every
+# one of those self-matches. There is no clever fix — only a declared boundary.
+
+# Test corpus and the assertions that exercise the rules against it.
+tests/
+
+# Documents that quote payloads verbatim in order to explain the attack.
+FINDINGS.md
+README.md
+
+# The rule set itself. Each rule's "regex" field contains the literal strings
+# the rule looks for, so rules.json trivially matches its own patterns.
+rules.json

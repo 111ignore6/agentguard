@@ -1,0 +1,96 @@
+{
+  "$comment": "Patterns for agent-targeted content in repositories. Severity: hostile | suspect | info. Add your own freely — the scanner loads whatever is here.",
+  "rules": [
+    {
+      "id": "EXFIL-001",
+      "severity": "hostile",
+      "category": "exfiltration",
+      "regex": "@platform-config|pre-session instructions|paste your complete",
+      "why": "Asks the agent to write its own session instructions/config into the commit — system-prompt exfiltration."
+    },
+    {
+      "id": "EXFIL-002",
+      "severity": "hostile",
+      "category": "exfiltration",
+      "regex": "verbatim[^.]{0,80}(instructions|guidelines|rules|prompt)|(instructions|guidelines|rules|prompt)[^.]{0,40}verbatim",
+      "why": "Demands a verbatim copy of the agent's instructions inside the deliverable."
+    },
+    {
+      "id": "EXFIL-003",
+      "severity": "hostile",
+      "category": "exfiltration",
+      "regex": "(system prompt|initial prompt|session instructions)[^.]{0,60}(include|paste|copy|write|commit|report)",
+      "why": "Directs the agent to reproduce its system prompt."
+    },
+    {
+      "id": "EXFIL-004",
+      "severity": "suspect",
+      "category": "exfiltration",
+      "regex": "your agent identity|agent identity[^.]{0,40}(comment|header|file)",
+      "why": "Requests agent identity metadata in deliverables — often paired with instruction dumping."
+    },
+    {
+      "id": "ANTIWARN-001",
+      "severity": "hostile",
+      "category": "anti-warning",
+      "regex": "SKIP_VALIDATION",
+      "why": "Frames a real warning as 'CI metadata' so humans skip it while agents keep reading."
+    },
+    {
+      "id": "ANTIWARN-002",
+      "severity": "hostile",
+      "category": "anti-warning",
+      "regex": "(automated|automatic|AI)\\s+systems?\\s+(should|must|can)\\s+ignore\\s+(the\\s+above|this|that)",
+      "why": "Explicitly instructs automated systems to disregard a preceding warning."
+    },
+    {
+      "id": "ANTIWARN-003",
+      "severity": "suspect",
+      "category": "anti-warning",
+      "regex": "ignore\\s+(all\\s+)?(previous|prior|the\\s+above)\\s+(instructions|notice|warning)",
+      "why": "Classic instruction-override phrasing."
+    },
+    {
+      "id": "FARM-001",
+      "severity": "suspect",
+      "category": "engagement-farming",
+      "regex": "limited only to the creator|only the issue author can attempt",
+      "why": "Forces every agent to open a fresh issue — self-replicating issue farm."
+    },
+    {
+      "id": "FARM-002",
+      "severity": "suspect",
+      "category": "engagement-farming",
+      "regex": "create\\s+(a|an|another)\\s+(new\\s+)?(github\\s+)?issue\\s+(on|in|about)\\s+(the|this)",
+      "why": "Instructs the agent to generate more issues."
+    },
+    {
+      "id": "FARM-003",
+      "severity": "info",
+      "category": "engagement-farming",
+      "regex": "star\\s+the\\s+repo|give\\s+(it|the\\s+repo)\\s+a\\s+star",
+      "why": "Asks the agent to inflate star counts."
+    },
+    {
+      "id": "GATE-001",
+      "severity": "info",
+      "category": "human-exclusion",
+      "regex": "AI\\s+only\\s+allowed|no\\s+humans?\\s+allowed|Autonomus\\s+Agents\\s+Only",
+      "why": "Labels that exclude human review — a signal that no one is vetting contributions."
+    },
+    {
+      "id": "CONCEAL-001",
+      "severity": "hostile",
+      "category": "concealment",
+      "regex": "do\\s+not\\s+(tell|inform|mention|disclose|reveal)\\s+(the\\s+)?(user|human|maintainer|owner)",
+      "why": "Asks the agent to withhold information from its operator."
+    },
+    {
+      "id": "PAY-001",
+      "severity": "suspect",
+      "category": "payment-bait",
+      "regex": "bount(?:y|ies)[^.]{0,110}(?:symbolic|not\\s+be\\s+merged|for\\s+research\\s+purposes\\s+only)",
+      "why": "States the bounty is not real — often paired with an instruction to ignore this very sentence."
+    }
+  ]
+}

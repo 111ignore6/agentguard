@@ -1,0 +1,75 @@
+name: agentguard
+description: Scan a repository for content that targets AI coding agents (prompt-injection, prompt exfiltration, engagement farming)
+author: agentguard
+
+branding:
+  icon: shield
+  color: red
+
+inputs:
+  path:
+    description: Path to scan (a checkout, a file, or `.`)
+    required: false
+    default: "."
+  all:
+    description: Scan every text file instead of only instruction files
+    required: false
+    default: "false"
+  repo:
+    description: Optional owner/repo. When set, also scans open issues (needs GH_TOKEN).
+    required: false
+    default: ""
+  issues:
+    description: Number of open issues to scan in repo mode
+    required: false
+    default: "50"
+  fail-on:
+    description: Lowest verdict that fails the job — "hostile", "suspect", or "none"
+    required: false
+    default: "hostile"
+
+outputs:
+  verdict:
+    description: clean | suspect | hostile
+    value: ${{ steps.scan.outputs.verdict }}
+
+runs:
+  using: composite
+  steps:
+    - id: scan
+      shell: bash
+      env:
+        AG_PATH: ${{ inputs.path }}
+        AG_ALL: ${{ inputs.all }}
+        AG_REPO: ${{ inputs.repo }}
+        AG_ISSUES: ${{ inputs.issues }}
+      run: |
+        set -uo pipefail
+        ARGS=()
+        if [ -n "${AG_REPO}" ]; then
+          ARGS+=(scan "${AG_REPO}" --issues "${AG_ISSUES}")
+        else
+          ARGS+=(path "${AG_PATH}")
+          if [ "${AG_ALL}" = "true" ]; then ARGS+=(--all); fi
+        fi
+        python "${GITHUB_ACTION_PATH}/agentguard.py" "${ARGS[@]}" | tee /tmp/agentguard.txt
+        CODE=${PIPESTATUS[0]}
+        case "${CODE}" in
+          0) echo "verdict=clean"   >> "$GITHUB_OUTPUT" ;;
+          1) echo "verdict=suspect" >> "$GITHUB_OUTPUT" ;;
+          2) echo "verdict=hostile" >> "$GITHUB_OUTPUT" ;;
+          *) echo "::error::agentguard failed to run (exit ${CODE})"; exit "${CODE}" ;;
+        esac
+        {
+          echo "## agentguard: ${CODE}"
+          echo
+          echo '```'
+          cat /tmp/agentguard.txt
+          echo '```'
+        } >> "$GITHUB_STEP_SUMMARY"
+        case "${{ inputs.fail-on }}" in
+          none)     exit 0 ;;
+          suspect)  [ "${CODE}" -ge 1 ] && exit 1 || exit 0 ;;
+          hostile)  [ "${CODE}" -ge 2 ] && exit 1 || exit 0 ;;
+          *)        exit 0 ;;
+        esac
