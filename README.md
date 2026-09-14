@@ -28,10 +28,17 @@ agentguard scans a repository for that content before you point an agent at it.
 > `scan --all`, the UTF-8 output fix and the metadata-resilience change
 > (`bf7c658`, `6bcf9cf`) were also produced by an AI agent (DeepSeek Harness),
 > during a live incident review, and were committed **under the maintainer's
-> identity** because the checkout carried no `user.name` — so the author field
-> alone does not tell you who wrote them. This note is that disclosure. The agent
-> audited the pushed content for secrets and local paths before pushing and found
-> none; published history was annotated rather than rewritten.
+> identity** — so the author field alone does not tell you who wrote them. This
+> note is that disclosure. The cause was *not* a missing `user.name`: the repo
+> does set it. The agent passed `-c user.name=$(git log -1 --format=%an)` out of
+> caution about an unconfigured checkout, which reproduced the same identity and
+> made the attribution look automatic when it was an unnecessary override. Its
+> earlier commit message asserted the missing-`user.name` explanation without
+> checking; that claim is wrong and is corrected here. The agent audited the
+> pushed content for secrets and local paths before pushing and found none;
+> published history was annotated rather than rewritten. CI caught one of these
+> commits (`e40a120` failed: it shipped a red test the agent had claimed was
+> green), which is why the correction commit exists.
 >
 > Treat every figure here as *reproducible but not human-verified*. That is why
 > the queries in [`FINDINGS.md`](FINDINGS.md#reproducing-this) are printed in
