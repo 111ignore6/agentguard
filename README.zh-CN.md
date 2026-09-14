@@ -86,12 +86,27 @@ python agentguard/agentguard.py --help
 
 ```bash
 agentguard scan owner/repo          # GitHub 仓库：指令类文件 + 开放 issue
+agentguard scan owner/repo --all    # 同上，外加整棵源码树（拉取仓库 tarball）
 agentguard path .                   # 本地检出（CI 里用这个）
 agentguard path . --all             # 扫全部文本文件，不限指令类文件
 agentguard text CONTRIBUTING.md     # 单个文件
 git show HEAD:CONTRIBUTING.md | agentguard text -
 agentguard scan owner/repo --json   # 机器可读
 ```
+
+**扫描范围是判定的一部分。** `scan` 与 `path` 只读那些"agent 会当指令服从"的文件
+（`CONTRIBUTING.md`、`README.md`、`AGENTS.md`、`.cursorrules` 等），`scan` 模式再附加
+issue 正文。**源码文件在这个集合之外，所以 CLEAN 对它们不作任何声明** —— 而敌意内容
+确实会被放进源码文件，那正是指令类扫描够不到的地方。现在每次运行都会打印实际用的范围：
+
+```
+  scope   instruction-only: read 1 file(s), 8 NOT read
+          source files are outside this scope — add --all before trusting a CLEAN verdict
+```
+
+`--all` 补上这个缺口：`path --all` 遍历本地检出；`scan --all` 通过普通 HTTPS 下载仓库
+tarball 并扫描它，覆盖 `TEXT_EXT` 里的代码扩展名（**不需要 `gh` 认证**）。
+窄范围下的提示语和退出码都没变，变的只是"读了什么"以及"承认自己没读什么"。
 
 退出码对 CI 友好，且**"发现"与"失败"可区分**：
 

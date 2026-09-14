@@ -12,7 +12,7 @@ inputs:
     required: false
     default: "."
   all:
-    description: Scan every text file instead of only instruction files
+    description: Scan source files too, not only instruction files (repo mode fetches the tarball)
     required: false
     default: "false"
   repo:
@@ -48,6 +48,7 @@ runs:
         ARGS=()
         if [ -n "${AG_REPO}" ]; then
           ARGS+=(scan "${AG_REPO}" --issues "${AG_ISSUES}")
+          if [ "${AG_ALL}" = "true" ]; then ARGS+=(--all); fi
         else
           ARGS+=(path "${AG_PATH}")
           if [ "${AG_ALL}" = "true" ]; then ARGS+=(--all); fi

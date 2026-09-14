@@ -19,14 +19,19 @@ Exit codes:  0 clean   1 suspect   2 hostile
 import argparse
 import base64
 import fnmatch
+import io
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
+import tarfile
+import tempfile
+import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 
 # Files an agent typically ingests as trusted instructions.
 DEFAULT_FILES = [
@@ -137,8 +142,39 @@ def _gh(path):
         return None
 
 
-def scan_github(repo, rules, n_issues=50, workers=6):
-    """Scan a GitHub repo: instruction files + recent open issues."""
+def fetch_repo_tree(repo, max_bytes=80_000_000):
+    """Download + extract the default-branch tarball so `scan --all` can reach
+    source files (the docs-only default misses exactly the class where hostile
+    content has actually been found). Returns a temp dir, or None on any failure
+    — a missing tarball must degrade to 'instruction files only', never to a
+    crash, and never silently: the caller reports the narrowed scope.
+    """
+    url = f"https://codeload.github.com/{repo}/tar.gz/HEAD"
+    tmp = None
+    try:
+        with urllib.request.urlopen(url, timeout=180) as r:   # noauth: public read
+            blob = r.read(max_bytes + 1)
+        if not blob or len(blob) > max_bytes:
+            return None
+        tmp = tempfile.mkdtemp(prefix="agentguard-")
+        with tarfile.open(fileobj=io.BytesIO(blob), mode="r:gz") as tf:
+            try:
+                tf.extractall(tmp, filter="data")             # Py>=3.12: no path/perm escapes
+            except TypeError:                                  # older stdlib has no filter kwarg
+                tf.extractall(tmp)
+        return tmp
+    except Exception:
+        if tmp:
+            shutil.rmtree(tmp, ignore_errors=True)
+        return None
+
+
+def scan_github(repo, rules, n_issues=50, workers=6, scan_all=False):
+    """Scan a GitHub repo: instruction files + recent open issues.
+
+    With scan_all=True the repo tarball is also fetched and its source tree is
+    scanned, and the reported scope becomes `all-text`.
+    """
     meta = _gh(f"repos/{repo}")
     if not meta:
         print(f"agentguard: cannot read {repo} (missing repo, or `gh` not authenticated)", file=sys.stderr)
@@ -171,13 +207,32 @@ def scan_github(repo, rules, n_issues=50, workers=6):
             hits += 1
         findings += f
 
+    mode, considered, unscanned = "instruction-only", None, None
+    if scan_all:
+        tree = fetch_repo_tree(repo)
+        if tree:
+            try:
+                more, s2 = scan_local(tree, rules, scan_all=True)
+                findings += more
+                scanned += s2["files_scanned"]
+                considered, unscanned = s2["files_considered"], s2["files_unscanned"]
+                mode = "all-text"
+            finally:
+                shutil.rmtree(tree, ignore_errors=True)
+        else:
+            print(f"agentguard: source tarball unavailable for {repo}; "
+                  f"scanned instruction files only (scope stays narrow)", file=sys.stderr)
+
     stats = {
         "repo": repo,
+        "mode": mode,
         "stars": meta.get("stargazers_count"),
         "forks": meta.get("forks_count"),
         "watchers": meta.get("subscribers_count"),
         "open_issues": meta.get("open_issues_count"),
         "files_scanned": scanned,
+        "files_considered": considered,
+        "files_unscanned": unscanned,
         "issues_scanned": len(issues),
         "issues_with_findings": hits,
     }
@@ -185,17 +240,26 @@ def scan_github(repo, rules, n_issues=50, workers=6):
 
 
 def scan_local(root, rules, scan_all=False, excludes=None):
-    """Scan a local checkout."""
+    """Scan a local checkout.
+
+    Scope is part of the verdict's meaning: by default only instruction files
+    (DEFAULT_FILES) are read, so a 9-file repo can report "1 file scanned" and
+    still read as repo-wide clean. The stats therefore always carry
+    mode / files_considered / files_unscanned, and report() prints them.
+    """
     findings, scanned, skipped = [], [], []
+    considered = 0
     patterns = load_ignore(root, excludes)
     if os.path.isfile(root):
         candidates = [root]
+        considered = 1
     else:
         candidates = []
         for dirpath, dirnames, filenames in os.walk(root):
             dirnames[:] = [d for d in dirnames if d not in
                            {".git", "node_modules", "vendor", "__pycache__", ".venv", "venv", "dist", "build"}]
             for fn in filenames:
+                considered += 1
                 full = os.path.join(dirpath, fn)
                 rel = os.path.relpath(full, root).replace("\\", "/")
                 if rel in DEFAULT_FILES or fn in DEFAULT_FILES or \
@@ -220,7 +284,12 @@ def scan_local(root, rules, scan_all=False, excludes=None):
         scanned.append(rel)
         findings += scan_text(text, rules, source=rel)
 
-    return findings, {"root": os.path.abspath(root), "files_scanned": scanned,
+    unscanned = max(considered - len(scanned) - len(skipped), 0)
+    return findings, {"root": os.path.abspath(root),
+                      "mode": "all-text" if scan_all else "instruction-only",
+                      "files_considered": considered,
+                      "files_scanned": scanned,
+                      "files_unscanned": unscanned,
                       "files_skipped": skipped}
 
 
@@ -249,6 +318,19 @@ def report(findings, stats, as_json=False, color=True):
     if stats.get("files_skipped"):
         print(f"  skipped {len(stats['files_skipped'])} via .agentguardignore")
 
+    # Scope must never be inferable-only-from-a-number: say what was NOT read.
+    mode = stats.get("mode")
+    if mode:
+        n_read = len(stats.get("files_scanned") or [])
+        n_un = stats.get("files_unscanned")
+        line = f"  scope   {mode}: read {n_read} file(s)"
+        if n_un:
+            line += f", {n_un} NOT read"
+        print(_c(line, "y" if mode == "instruction-only" else "d", color))
+        if mode == "instruction-only":
+            print(_c("          source files are outside this scope — add --all "
+                     "before trusting a CLEAN verdict", "y", color))
+
     vc = {"hostile": "r", "suspect": "y", "clean": "g"}[v]
     print(f"\n  verdict: {_c(v.upper(), vc, color)}")
 
@@ -264,10 +346,14 @@ def report(findings, stats, as_json=False, color=True):
     else:
         print("\n  No agent-targeted content found.\n")
 
+    clean_note = "-> Nothing found. Still apply least privilege to your agent."
+    if mode == "instruction-only":
+        clean_note = ("-> Nothing found IN THE SCANNED SCOPE. Source files were not read; "
+                      "a CLEAN here does not mean the repo is safe.")
     print("  " + _c({
         "hostile": "-> Do not let an autonomous agent read this repo unsupervised.",
         "suspect": "-> Review manually before running an agent here.",
-        "clean": "-> Nothing found. Still apply least privilege to your agent.",
+        "clean": clean_note,
     }[v], vc, color))
     print()
     return v
@@ -276,6 +362,17 @@ def report(findings, stats, as_json=False, color=True):
 # --------------------------------------------------------------------------- cli
 
 def main(argv=None):
+    # Force UTF-8 on our own streams. `--json` deliberately emits non-ASCII
+    # (ensure_ascii=False) and report() echoes paths verbatim: on a zh-CN Windows
+    # console those bytes come out cp936, so a non-ASCII path alone makes the
+    # output invalid UTF-8 for every downstream consumer (CI actions, pipes).
+    for stream in (sys.stdout, sys.stderr):
+        if stream is not None and hasattr(stream, "reconfigure"):
+            try:
+                stream.reconfigure(encoding="utf-8", errors="replace")
+            except Exception:
+                pass
+
     ap = argparse.ArgumentParser(prog="agentguard", description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--version", action="version", version=f"agentguard {__version__}")
@@ -284,6 +381,8 @@ def main(argv=None):
     s = sub.add_parser("scan", help="scan a GitHub repo (owner/repo)")
     s.add_argument("repo")
     s.add_argument("--issues", type=int, default=50)
+    s.add_argument("--all", action="store_true",
+                   help="also fetch the repo tarball and scan source files, not just instruction files")
     s.add_argument("--json", action="store_true")
     s.add_argument("--rules")
 
@@ -305,7 +404,7 @@ def main(argv=None):
     rules = load_rules(a.rules)
 
     if a.cmd == "scan":
-        findings, stats = scan_github(a.repo.strip().strip("/"), rules, a.issues)
+        findings, stats = scan_github(a.repo.strip().strip("/"), rules, a.issues, scan_all=a.all)
     elif a.cmd == "path":
         if not os.path.exists(a.path):
             print(f"agentguard: no such path: {a.path}", file=sys.stderr)

@@ -107,12 +107,30 @@ python agentguard/agentguard.py --help
 
 ```bash
 agentguard scan owner/repo          # GitHub repo: instruction files + open issues
+agentguard scan owner/repo --all    # same, plus the whole source tree (fetches the tarball)
 agentguard path .                   # a local checkout (use this in CI)
 agentguard path . --all             # scan every text file, not just instruction files
 agentguard text CONTRIBUTING.md     # one file
 git show HEAD:CONTRIBUTING.md | agentguard text -
 agentguard scan owner/repo --json   # machine-readable
 ```
+
+**Scope is part of the verdict.** `scan` and `path` read only the files an agent is
+likely to obey as instructions (`CONTRIBUTING.md`, `README.md`, `AGENTS.md`,
+`.cursorrules`, …), plus issue bodies in `scan` mode. Source files are outside that
+set, so a CLEAN result says nothing about them — and hostile content does get placed
+in source files, which the instruction-file scan cannot reach. Every run now prints
+the scope it actually used:
+
+```
+  scope   instruction-only: read 1 file(s), 8 NOT read
+          source files are outside this scope — add --all before trusting a CLEAN verdict
+```
+
+`--all` closes that gap: `path --all` walks the checkout, `scan --all` downloads the
+repository tarball over plain HTTPS (no `gh` authentication required) and scans it,
+covering the code extensions in `TEXT_EXT`. The narrow-scope advice line and the
+exit codes are unchanged; only what gets read, and what is admitted, changed.
 
 Exit codes are CI-friendly, and errors are distinguishable from findings:
 
