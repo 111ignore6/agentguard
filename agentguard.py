@@ -177,8 +177,15 @@ def scan_github(repo, rules, n_issues=50, workers=6, scan_all=False):
     """
     meta = _gh(f"repos/{repo}")
     if not meta:
-        print(f"agentguard: cannot read {repo} (missing repo, or `gh` not authenticated)", file=sys.stderr)
-        raise SystemExit(EXIT_ERROR)
+        if not scan_all:
+            print(f"agentguard: cannot read {repo} (missing repo, or `gh` not authenticated)", file=sys.stderr)
+            raise SystemExit(EXIT_ERROR)
+        # --all reaches the source tree over plain HTTPS (codeload): no gh auth, no
+        # API quota. A dead `gh` must not forfeit the widest scan the tool has.
+        print(f"agentguard: repo metadata unavailable for {repo} (`gh` unauthenticated or "
+              f"rate-limited) — continuing from the tarball, issues and API file fetches skipped",
+              file=sys.stderr)
+        meta = {}
 
     findings, scanned = [], []
 
