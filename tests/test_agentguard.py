@@ -252,11 +252,15 @@ class TestRepoResilience(unittest.TestCase):
     def test_scan_all_survives_missing_metadata(self):
         tmp = self._tree_with_hostile_source()
         # A declared skip must still be reported through the repo-mode stats: the
-        # docs promise "skips are always reported, never silent".
+        # docs promise "skips are always reported, never silent". The skipped file
+        # has to be one --all would otherwise select: extensionless names like
+        # LICENSE are not in TEXT_EXT, so they are never candidates and never
+        # appear in files_skipped (my first version of this test asserted that
+        # wrong thing, and e40a120 shipped claiming it passed -- it did not).
         with open(os.path.join(tmp, ".agentguardignore"), "w", encoding="utf-8") as fh:
-            fh.write("LICENSE\n")
-        with open(os.path.join(tmp, "LICENSE"), "w", encoding="utf-8") as fh:
-            fh.write("MIT\n")
+            fh.write("notes.md\n")
+        with open(os.path.join(tmp, "notes.md"), "w", encoding="utf-8") as fh:
+            fh.write("Ordinary documentation, nothing agent-targeted.\n")
         orig_gh, orig_tree = ag._gh, ag.fetch_repo_tree
         ag._gh, ag.fetch_repo_tree = (lambda path: None), (lambda repo: tmp)
         try:
@@ -266,7 +270,7 @@ class TestRepoResilience(unittest.TestCase):
             shutil.rmtree(tmp, ignore_errors=True)
         self.assertEqual(stats["mode"], "all-text")
         self.assertEqual(ag.verdict(findings), "hostile")
-        self.assertEqual([s["file"] for s in stats["files_skipped"]], ["LICENSE"])
+        self.assertEqual([s["file"] for s in stats["files_skipped"]], ["notes.md"])
 
     def test_docs_only_scan_still_errors_without_metadata(self):
         orig = ag._gh
