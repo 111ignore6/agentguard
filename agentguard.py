@@ -142,6 +142,24 @@ def _gh(path):
         return None
 
 
+def unwrap_single_dir(path):
+    """Descend through the single wrapper directory a tarball usually creates.
+
+    GitHub archives extract to `<repo>-<ref>/...`, so returning the temp root
+    would look for `.agentguardignore` one level too high and silently disable
+    it. Observed on this repo: `path .` -> CLEAN with 3 declared skips, while
+    `scan --all` -> 80 findings / HOSTILE, because the self-scan boundary was
+    being ignored rather than honoured.
+    """
+    try:
+        entries = os.listdir(path)
+    except OSError:
+        return path
+    if len(entries) == 1 and os.path.isdir(os.path.join(path, entries[0])):
+        return os.path.join(path, entries[0])
+    return path
+
+
 def fetch_repo_tree(repo, max_bytes=80_000_000):
     """Download + extract the default-branch tarball so `scan --all` can reach
     source files (the docs-only default misses exactly the class where hostile
@@ -162,7 +180,7 @@ def fetch_repo_tree(repo, max_bytes=80_000_000):
                 tf.extractall(tmp, filter="data")             # Py>=3.12: no path/perm escapes
             except TypeError:                                  # older stdlib has no filter kwarg
                 tf.extractall(tmp)
-        return tmp
+        return unwrap_single_dir(tmp)
     except Exception:
         if tmp:
             shutil.rmtree(tmp, ignore_errors=True)
@@ -215,6 +233,7 @@ def scan_github(repo, rules, n_issues=50, workers=6, scan_all=False):
         findings += f
 
     mode, considered, unscanned = "instruction-only", None, None
+    skipped_tree: list = []
     if scan_all:
         tree = fetch_repo_tree(repo)
         if tree:
@@ -223,9 +242,12 @@ def scan_github(repo, rules, n_issues=50, workers=6, scan_all=False):
                 findings += more
                 scanned += s2["files_scanned"]
                 considered, unscanned = s2["files_considered"], s2["files_unscanned"]
+                skipped_tree = s2["files_skipped"]
                 mode = "all-text"
             finally:
                 shutil.rmtree(tree, ignore_errors=True)
+                if os.path.basename(os.path.dirname(tree)).startswith("agentguard-"):
+                    shutil.rmtree(os.path.dirname(tree), ignore_errors=True)
         else:
             print(f"agentguard: source tarball unavailable for {repo}; "
                   f"scanned instruction files only (scope stays narrow)", file=sys.stderr)
@@ -240,6 +262,7 @@ def scan_github(repo, rules, n_issues=50, workers=6, scan_all=False):
         "files_scanned": scanned,
         "files_considered": considered,
         "files_unscanned": unscanned,
+        "files_skipped": skipped_tree,      # skips are reported, never silent
         "issues_scanned": len(issues),
         "issues_with_findings": hits,
     }
