@@ -24,6 +24,15 @@ agentguard scans a repository for that content before you point an agent at it.
 > reviewed what would be published, and approved the push. **That human has not
 > independently re-run the measurements.**
 >
+> **2026-09-15 follow-up, stated for the same reason.** The scope-reporting fix,
+> `scan --all`, the UTF-8 output fix and the metadata-resilience change
+> (`bf7c658`, `6bcf9cf`) were also produced by an AI agent (DeepSeek Harness),
+> during a live incident review, and were committed **under the maintainer's
+> identity** because the checkout carried no `user.name` — so the author field
+> alone does not tell you who wrote them. This note is that disclosure. The agent
+> audited the pushed content for secrets and local paths before pushing and found
+> none; published history was annotated rather than rewritten.
+>
 > Treat every figure here as *reproducible but not human-verified*. That is why
 > the queries in [`FINDINGS.md`](FINDINGS.md#reproducing-this) are printed in
 > full: please check them rather than take them on trust. The audit that caught
@@ -33,11 +42,13 @@ agentguard scans a repository for that content before you point an agent at it.
 ```console
 $ agentguard scan some-org/some-repo
 
-agentguard  v0.1.0
+agentguard  v0.1.1
 ======================================================================
   repo    some-org/some-repo
   stars=57  forks=396  watchers=0  open_issues=183
   scanned 3 files, 40 issues (4 with findings)
+  scope   instruction-only: read 3 file(s)
+          source files are outside this scope — add --all before trusting a CLEAN verdict
 
   verdict: HOSTILE
 
@@ -185,9 +196,15 @@ Only `hostile` and `suspect` affect the exit code; `info` is advisory.
 does the same ad hoc. Skips are always reported, never silent:
 
 ```console
-  scanned 3 file(s)
-  skipped 6 via .agentguardignore
+  scanned 0 file(s)
+  skipped 3 via .agentguardignore
+  scope   instruction-only: read 0 file(s), 12 NOT read
+          source files are outside this scope — add --all before trusting a CLEAN verdict
 ```
+
+That is this repo's own self-scan at v0.1.1, captured, not illustrative: the
+instruction files it would read are exactly the ones it declares skipped, so it
+reads nothing — and now says so instead of looking like a clean bill of health.
 
 This repo needs it, and the reason is worth stating plainly. **A tool that
 detects injection payloads has to contain injection payloads** — in its rules

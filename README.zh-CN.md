@@ -17,16 +17,20 @@ agentguard 让你在把 agent 指向某个仓库之前，先看清里面有什�
 >
 > 人类做的是：下达指令、提供 GitHub 账号与 API 访问、审阅将要发布的内容、批准推送。**这位人类没有独立重跑过这些测量。**
 >
+> **2026-09-15 的后续改动，出于同样原因在此说明。** 范围披露、`scan --all`、UTF-8 输出修复、以及元数据缺失时的降级继续（`bf7c658`、`6bcf9cf`）**同样由 AI agent（DeepSeek Harness）在一次现场故障排查中产出**，并且因为检出目录没有配置 `user.name`，**是以维护者身份提交的** —— 也就是说，只看 author 字段认不出实际作者。这条注释就是补上的披露。agent 在推送前自查过内容（无密钥、无本机路径），并且**没有改写已发布的历史**，而是用这段文字标注。
+>
 > 因此请把本文每个数字都当作**"可复现，但未经人核验"**。这正是 [`FINDINGS.zh-CN.md`](FINDINGS.zh-CN.md#复现方式) 把查询语句完整打印出来的原因：**请你去核查，而不是信任。** 初稿里那六处夸大，也是同一个 AI 自己审计出来的——**这是加这段披露的理由，不是替代品。**
 
 ```console
 $ agentguard scan some-org/some-repo
 
-agentguard  v0.1.0
+agentguard  v0.1.1
 ======================================================================
   repo    some-org/some-repo
   stars=57  forks=396  watchers=0  open_issues=183
   scanned 3 files, 40 issues (4 with findings)
+  scope   instruction-only: read 3 file(s)
+          source files are outside this scope — add --all before trusting a CLEAN verdict
 
   verdict: HOSTILE
 
@@ -158,9 +162,15 @@ jobs:
 扫描根目录下的 `.agentguardignore` 存放要跳过的 glob 模式，`--exclude GLOB` 可临时追加。**跳过永远会被报告，不会静默发生**：
 
 ```console
-  scanned 3 file(s)
-  skipped 6 via .agentguardignore
+  scanned 0 file(s)
+  skipped 3 via .agentguardignore
+  scope   instruction-only: read 0 file(s), 12 NOT read
+          source files are outside this scope — add --all before trusting a CLEAN verdict
 ```
+
+上面这段是**本仓库 v0.1.1 自扫的真实捕获**，不是示例数字：它本该读的那些指令类文件，
+正好就是它声明跳过的，所以一个都没读 —— 现在它会把这件事说出来，而不是留下一张
+看起来像"体检合格"的 CLEAN。
 
 本仓库自己就需要它，原因值得直说：**一个检测注入载荷的工具，自身必须含有注入载荷**——规则里（`rules.json` 存的就是那些触发字符串字面量）、测试里（断言检测器必须命中它们）、文档里（逐字引用作为证据）。**这三处每一项都会自匹配。没有聪明的解法，只有一条声明的边界**，那就是 [`.agentguardignore`](.agentguardignore)。
 
